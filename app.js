@@ -5,7 +5,7 @@ class QuizApp {
         this.questions = [];
         this.currentQuestion = 0;
         this.userAnswers = [];
-        this.knownQuizzes = ['quiz1.md', 'quiz2.md', 'quiz3.md'];
+        this.knownQuizzes = ['quiz1.yaml', 'quiz2.yaml', 'quiz3.yaml'];
         this.setupEventListeners();
         this.loadQuizzes();
     }
@@ -25,7 +25,8 @@ class QuizApp {
                     const response = await fetch(filename);
                     if (response.ok) {
                         const content = await response.text();
-                        this.quizzes[filename] = this.parseMarkdown(content);
+                        const quizData = jsyaml.load(content);
+                        this.quizzes[filename] = quizData;
                     }
                 } catch (error) {
                     console.warn(`Failed to load ${filename}:`, error);
@@ -37,7 +38,7 @@ class QuizApp {
             console.error('Error loading quizzes:', error);
             document.getElementById('loadingState').innerHTML = `
                 <h1 class="text-2xl font-bold mb-4 text-red-600">Error Loading Quizzes</h1>
-                <p>Please ensure markdown files are in the root directory.</p>
+                <p>Please ensure YAML files are in the root directory.</p>
             `;
         }
     }
@@ -57,49 +58,13 @@ class QuizApp {
             const button = document.createElement('button');
             button.className = 'w-full text-left p-4 bg-gray-50 hover:bg-gray-100 rounded border mb-2';
             button.innerHTML = `
-                <h3 class="font-bold">${quiz.metadata.title || filename}</h3>
-                <p class="text-sm text-gray-600">${quiz.metadata.description || 'No description available'}</p>
+                <h3 class="font-bold">${quiz.title || filename}</h3>
+                <p class="text-sm text-gray-600">${quiz.description || 'No description available'}</p>
                 <p class="text-sm text-gray-500 mt-1">${quiz.questions.length} questions</p>
             `;
             button.onclick = () => this.startQuiz(filename);
             quizList.appendChild(button);
         });
-    }
-
-    parseMarkdown(content) {
-        const sections = content.split('---').filter(section => section.trim());
-        
-        // Parse quiz metadata (first section)
-        const metadata = jsyaml.load(sections[0]);
-        
-        // Parse questions (remaining sections)
-        const questions = sections.slice(1).map(section => {
-            const lines = section.trim().split('\n');
-            
-            // Get metadata and choices
-            const metadataText = lines.filter(line => !line.startsWith('-')).join('\n');
-            const choices = lines
-                .filter(line => line.startsWith('-'))
-                .map(line => line.substring(1).trim());
-            
-            // Parse metadata
-            let questionData = {};
-            try {
-                questionData = jsyaml.load(metadataText);
-            } catch (e) {
-                console.error('Error parsing question metadata:', e);
-                return null;
-            }
-            
-            return {
-                topic: questionData.topic || 'Unknown',
-                text: questionData.question || 'Missing question',
-                choices: choices,
-                correctAnswer: Number(questionData.correct) || 0
-            };
-        }).filter(q => q !== null); // Remove any questions that failed to parse
-
-        return { metadata, questions };
     }
 
     startQuiz(filename) {
@@ -120,7 +85,7 @@ class QuizApp {
 
         document.getElementById('questionNumber').textContent = `Question ${this.currentQuestion + 1}/${this.questions.length}`;
         document.getElementById('topic').textContent = question.topic;
-        document.getElementById('questionText').textContent = question.text;
+        document.getElementById('questionText').textContent = question.question;
 
         const choicesContainer = document.getElementById('choices');
         choicesContainer.innerHTML = '';
@@ -168,7 +133,7 @@ class QuizApp {
         document.getElementById('resultsContainer').classList.remove('hidden');
 
         const correctAnswers = this.userAnswers.filter((answer, index) => 
-            answer === this.questions[index].correctAnswer
+            answer === this.questions[index].correct
         ).length;
 
         const scorePercentage = ((correctAnswers / this.questions.length) * 100).toFixed(1);
@@ -179,13 +144,13 @@ class QuizApp {
         incorrectContainer.innerHTML = '<h3 class="font-bold mb-2">Incorrect Answers:</h3>';
 
         this.questions.forEach((question, index) => {
-            if (this.userAnswers[index] !== question.correctAnswer) {
+            if (this.userAnswers[index] !== question.correct) {
                 const div = document.createElement('div');
                 div.className = 'mb-4 p-3 bg-red-50 rounded';
                 div.innerHTML = `
-                    <p class="font-bold">${question.text}</p>
+                    <p class="font-bold">${question.question}</p>
                     <p class="text-red-600">Your answer: ${question.choices[this.userAnswers[index]]}</p>
-                    <p class="text-green-600">Correct answer: ${question.choices[question.correctAnswer]}</p>
+                    <p class="text-green-600">Correct answer: ${question.choices[question.correct]}</p>
                 `;
                 incorrectContainer.appendChild(div);
             }
