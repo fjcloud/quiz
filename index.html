@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Quiz App</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.2/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-4">
+    <!-- Loading State -->
+    <div id="loadingState" class="max-w-2xl mx-auto bg-white p-6 rounded-lg shadow-md">
+        <h1 class="text-2xl font-bold mb-4">Loading Quizzes...</h1>
+        <div class="animate-pulse">
+            <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+            <div class="h-4 bg-gray-200 rounded w-1/2"></div>
+        </div>
+    </div>
+
+    <!-- Quiz Selection -->
+    <div id="quizSelection" class="max-w-2xl mx-auto bg-white p-6 rounded-lg shadow-md hidden">
+        <h1 class="text-2xl font-bold mb-4">Available Quizzes</h1>
+        <div id="quizList" class="space-y-2"></div>
+    </div>
+
+    <!-- Quiz Section -->
+    <div id="quizContainer" class="max-w-2xl mx-auto bg-white p-6 rounded-lg shadow-md mt-4 hidden">
+        <div class="mb-4 flex justify-between items-center">
+            <div>
+                <span id="questionNumber" class="font-bold"></span>
+                <span id="topic" class="text-blue-600 ml-2"></span>
+            </div>
+            <button id="exitQuizBtn" class="text-gray-600 hover:text-gray-800">Exit Quiz</button>
+        </div>
+        <div id="questionText" class="text-lg mb-4"></div>
+        <div id="choices" class="space-y-2"></div>
+        <div class="mt-6 flex justify-between">
+            <button id="prevBtn" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Previous</button>
+            <button id="nextBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Next</button>
+        </div>
+    </div>
+
+    <!-- Results Section -->
+    <div id="resultsContainer" class="max-w-2xl mx-auto bg-white p-6 rounded-lg shadow-md mt-4 hidden">
+        <h2 class="text-2xl font-bold mb-4">Quiz Results</h2>
+        <div id="score" class="text-lg mb-4"></div>
+        <div id="incorrectAnswers" class="mt-4"></div>
+        <div class="mt-4 space-x-4">
+            <button id="restartBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Restart Quiz</button>
+            <button id="backToListBtn" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Back to Quiz List</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
