@@ -5,7 +5,6 @@ class QuizApp {
         this.questions = [];
         this.currentQuestion = 0;
         this.userAnswers = [];
-        this.knownQuizzes = ['quiz1.yaml', 'quiz2.yaml', 'quiz3.yaml'];
         this.setupEventListeners();
         this.loadQuizzes();
     }
@@ -20,17 +19,34 @@ class QuizApp {
 
     async loadQuizzes() {
         try {
-            for (const filename of this.knownQuizzes) {
+            const response = await fetch('/data/');
+            const text = await response.text();
+            
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = text;
+            
+            const yamlFiles = Array.from(tempDiv.querySelectorAll('a'))
+                .map(a => a.href)
+                .filter(href => href.match(/\.ya?ml$/))
+                .map(href => href.split('/').pop());
+
+            for (const filename of yamlFiles) {
                 try {
-                    const response = await fetch(filename);
-                    if (response.ok) {
-                        const content = await response.text();
+                    const fileResponse = await fetch(`/data/${filename}`);
+                    if (fileResponse.ok) {
+                        const content = await fileResponse.text();
                         const quizData = jsyaml.load(content);
-                        this.quizzes[filename] = quizData;
+                        if (this.isValidQuizData(quizData)) {
+                            this.quizzes[filename] = quizData;
+                        }
                     }
                 } catch (error) {
                     console.warn(`Failed to load ${filename}:`, error);
                 }
+            }
+            
+            if (Object.keys(this.quizzes).length === 0) {
+                throw new Error('No valid quiz files found');
             }
             
             this.showQuizList();
@@ -38,9 +54,26 @@ class QuizApp {
             console.error('Error loading quizzes:', error);
             document.getElementById('loadingState').innerHTML = `
                 <h1 class="text-2xl font-bold mb-4 text-red-600">Error Loading Quizzes</h1>
-                <p>Please ensure YAML files are in the root directory.</p>
+                <p>Please ensure YAML files are in the /data directory and the server allows directory listing.</p>
+                <p class="text-sm text-gray-600 mt-2">Technical details: ${error.message}</p>
             `;
         }
+    }
+
+    isValidQuizData(data) {
+        return (
+            data &&
+            typeof data.title === 'string' &&
+            typeof data.description === 'string' &&
+            Array.isArray(data.questions) &&
+            data.questions.every(q => 
+                q.topic &&
+                q.question &&
+                typeof q.correct === 'number' &&
+                Array.isArray(q.choices) &&
+                q.choices.length > 0
+            )
+        );
     }
 
     showQuizList() {
@@ -58,9 +91,10 @@ class QuizApp {
             const button = document.createElement('button');
             button.className = 'w-full text-left p-4 bg-gray-50 hover:bg-gray-100 rounded border mb-2';
             button.innerHTML = `
-                <h3 class="font-bold">${quiz.title || filename}</h3>
-                <p class="text-sm text-gray-600">${quiz.description || 'No description available'}</p>
+                <h3 class="font-bold">${quiz.title}</h3>
+                <p class="text-sm text-gray-600">${quiz.description}</p>
                 <p class="text-sm text-gray-500 mt-1">${quiz.questions.length} questions</p>
+                <p class="text-xs text-gray-400">${filename}</p>
             `;
             button.onclick = () => this.startQuiz(filename);
             quizList.appendChild(button);
@@ -90,6 +124,10 @@ class QuizApp {
         const choicesContainer = document.getElementById('choices');
         choicesContainer.innerHTML = '';
 
+        // Create a div to hold all choices for consistent spacing
+        const choicesDiv = document.createElement('div');
+        choicesDiv.className = 'space-y-2'; // Consistent 0.5rem spacing between choices
+
         question.choices.forEach((choice, index) => {
             const button = document.createElement('button');
             button.className = `w-full text-left p-3 rounded ${
@@ -99,12 +137,15 @@ class QuizApp {
             } border`;
             button.textContent = choice;
             button.onclick = () => this.selectAnswer(index);
-            choicesContainer.appendChild(button);
+            choicesDiv.appendChild(button);
         });
 
+        choicesContainer.appendChild(choicesDiv);
+
+        const nextBtn = document.getElementById('nextBtn');
+        nextBtn.textContent = this.currentQuestion === this.questions.length - 1 ? 'Finish' : 'Next';
         document.getElementById('prevBtn').disabled = this.currentQuestion === 0;
-        document.getElementById('nextBtn').textContent = 
-            this.currentQuestion === this.questions.length - 1 ? 'Finish' : 'Next';
+        nextBtn.disabled = this.userAnswers[this.currentQuestion] === null;
     }
 
     selectAnswer(index) {
@@ -143,8 +184,10 @@ class QuizApp {
         const incorrectContainer = document.getElementById('incorrectAnswers');
         incorrectContainer.innerHTML = '<h3 class="font-bold mb-2">Incorrect Answers:</h3>';
 
+        let hasIncorrectAnswers = false;
         this.questions.forEach((question, index) => {
             if (this.userAnswers[index] !== question.correct) {
+                hasIncorrectAnswers = true;
                 const div = document.createElement('div');
                 div.className = 'mb-4 p-3 bg-red-50 rounded';
                 div.innerHTML = `
@@ -155,12 +198,20 @@ class QuizApp {
                 incorrectContainer.appendChild(div);
             }
         });
+
+        if (!hasIncorrectAnswers) {
+            incorrectContainer.innerHTML = `
+                <div class="p-3 bg-green-50 rounded">
+                    <p class="text-green-600 font-bold">Perfect score! All answers are correct.</p>
+                </div>
+            `;
+        }
     }
 
     restartQuiz() {
-        document.getElementById('resultsContainer').classList.add('hidden');
         this.currentQuestion = 0;
         this.userAnswers = new Array(this.questions.length).fill(null);
+        document.getElementById('resultsContainer').classList.add('hidden');
         document.getElementById('quizContainer').classList.remove('hidden');
         this.displayQuestion();
     }

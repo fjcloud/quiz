@@ -1,0 +1,92 @@
+title: OpenShift Fundamentals Quiz
+description: Test your knowledge about Red Hat OpenShift Container Platform and its core concepts
+questions:
+  - topic: Basics
+    question: What is OpenShift?
+    correct: 0
+    choices:
+      - A container platform built by Red Hat on top of Kubernetes
+      - A virtual machine management platform
+      - A cloud hosting service
+      - A Linux distribution
+
+  - topic: Architecture
+    question: What is the name of the web console interface provided by OpenShift for cluster management?
+    correct: 2
+    choices:
+      - Control Panel
+      - Dashboard
+      - OpenShift Web Console
+      - Cluster UI
+
+  - topic: Projects
+    question: In OpenShift, what is the equivalent of a Kubernetes namespace?
+    correct: 0
+    choices:
+      - Project
+      - Workspace
+      - Environment
+      - Zone
+
+  - topic: Building
+    question: What is the primary build strategy in OpenShift for creating container images from source code?
+    correct: 1
+    choices:
+      - Docker build
+      - Source-to-Image (S2I)
+      - Custom build
+      - Jenkins build
+
+  - topic: Security
+    question: What OpenShift feature manages authentication and authorization in the cluster?
+    correct: 3
+    choices:
+      - Access Control
+      - Security Context
+      - Container Policy
+      - Role-Based Access Control (RBAC)
+
+  - topic: Networking
+    question: What is the default router implementation used in OpenShift?
+    correct: 0
+    choices:
+      - HAProxy
+      - Nginx
+      - Traefik
+      - Envoy
+
+  - topic: Storage
+    question: What is a PersistentVolumeClaim (PVC) in OpenShift?
+    correct: 2
+    choices:
+      - A physical storage device
+      - A backup system
+      - A request for storage by a user
+      - A storage driver
+
+  - topic: Deployment
+    question: What is a DeploymentConfig in OpenShift?
+    correct: 1
+    choices:
+      - A backup configuration
+      - A template for creating and managing pods
+      - A network configuration
+      - A storage configuration
+
+  - topic: Routes
+    question: How does OpenShift expose services to external clients?
+    correct: 0
+    choices:
+      - Using Routes
+      - Using NodePorts
+      - Using LoadBalancers
+      - Using Ingress only
+
+  - topic: Monitoring
+    question: Which monitoring stack is included by default in OpenShift 4.x?
+    correct: 2
+    choices:
+      - Nagios
+      - Zabbix
+      - Prometheus and Grafana
+      - Elastic Stack
