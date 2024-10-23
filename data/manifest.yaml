@@ -1,0 +1,3 @@
+quizzes:
+  - filename: openshift.yaml
+    order: 1

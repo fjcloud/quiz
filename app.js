@@ -19,29 +19,39 @@ class QuizApp {
 
     async loadQuizzes() {
         try {
-            const response = await fetch('/data/');
-            const text = await response.text();
+            // First load the manifest
+            const manifestResponse = await fetch('/data/manifest.yaml');
+            if (!manifestResponse.ok) {
+                throw new Error('Failed to load quiz manifest');
+            }
             
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = text;
+            const manifestContent = await manifestResponse.text();
+            const manifest = jsyaml.load(manifestContent);
             
-            const yamlFiles = Array.from(tempDiv.querySelectorAll('a'))
-                .map(a => a.href)
-                .filter(href => href.match(/\.ya?ml$/))
-                .map(href => href.split('/').pop());
+            if (!manifest.quizzes || !Array.isArray(manifest.quizzes)) {
+                throw new Error('Invalid manifest format');
+            }
 
-            for (const filename of yamlFiles) {
+            // Sort quizzes by order if present
+            const sortedQuizzes = [...manifest.quizzes].sort((a, b) => 
+                (a.order || 0) - (b.order || 0)
+            );
+
+            // Load each quiz file listed in the manifest
+            for (const quizInfo of sortedQuizzes) {
                 try {
-                    const fileResponse = await fetch(`/data/${filename}`);
+                    const fileResponse = await fetch(`/data/${quizInfo.filename}`);
                     if (fileResponse.ok) {
                         const content = await fileResponse.text();
                         const quizData = jsyaml.load(content);
                         if (this.isValidQuizData(quizData)) {
-                            this.quizzes[filename] = quizData;
+                            this.quizzes[quizInfo.filename] = quizData;
+                        } else {
+                            console.warn(`Invalid quiz data in ${quizInfo.filename}`);
                         }
                     }
                 } catch (error) {
-                    console.warn(`Failed to load ${filename}:`, error);
+                    console.warn(`Failed to load ${quizInfo.filename}:`, error);
                 }
             }
             
@@ -54,7 +64,7 @@ class QuizApp {
             console.error('Error loading quizzes:', error);
             document.getElementById('loadingState').innerHTML = `
                 <h1 class="text-2xl font-bold mb-4 text-red-600">Error Loading Quizzes</h1>
-                <p>Please ensure YAML files are in the /data directory and the server allows directory listing.</p>
+                <p>Please ensure manifest.yaml and quiz files are present in the /data directory.</p>
                 <p class="text-sm text-gray-600 mt-2">Technical details: ${error.message}</p>
             `;
         }
@@ -94,7 +104,6 @@ class QuizApp {
                 <h3 class="font-bold">${quiz.title}</h3>
                 <p class="text-sm text-gray-600">${quiz.description}</p>
                 <p class="text-sm text-gray-500 mt-1">${quiz.questions.length} questions</p>
-                <p class="text-xs text-gray-400">${filename}</p>
             `;
             button.onclick = () => this.startQuiz(filename);
             quizList.appendChild(button);
@@ -124,9 +133,8 @@ class QuizApp {
         const choicesContainer = document.getElementById('choices');
         choicesContainer.innerHTML = '';
 
-        // Create a div to hold all choices for consistent spacing
         const choicesDiv = document.createElement('div');
-        choicesDiv.className = 'space-y-2'; // Consistent 0.5rem spacing between choices
+        choicesDiv.className = 'space-y-2';
 
         question.choices.forEach((choice, index) => {
             const button = document.createElement('button');
