@@ -3,7 +3,7 @@ class QuizApp {
         this.quizzes = {};
         this.currentQuiz = null;
         this.questions = [];
-        this.originalQuestions = []; // Store original questions order
+        this.originalQuestions = [];
         this.currentQuestion = 0;
         this.userAnswers = [];
         this.maxTimePerQuestion = 30;
@@ -11,16 +11,15 @@ class QuizApp {
         this.questionStartTime = 0;
         this.questionTimes = [];
         this.timerInterval = null;
-        this.questionMapping = []; // Map randomized questions back to original order
-        this.randomizedChoices = []; // Store randomized choices for each question
+        this.questionMapping = [];
+        this.randomizedChoices = [];
+        this.submittedAnswers = new Set();
         
         this.setupEventListeners();
         this.initializeApp();
     }
 
     setupEventListeners() {
-        document.getElementById('prevBtn').addEventListener('click', () => this.previousQuestion());
-        document.getElementById('nextBtn').addEventListener('click', () => this.nextQuestion());
         document.getElementById('restartBtn').addEventListener('click', () => this.restartQuiz());
         document.getElementById('backToListBtn').addEventListener('click', () => this.showQuizList());
         document.getElementById('exitQuizBtn').addEventListener('click', () => this.showQuizList());
@@ -167,6 +166,7 @@ class QuizApp {
         this.currentQuestion = 0;
         this.userAnswers = new Array(this.questions.length).fill(null);
         this.questionTimes = new Array(this.questions.length).fill(0);
+        this.submittedAnswers = new Set();
         
         document.getElementById('quizSelection').classList.add('hidden');
         document.getElementById('resultsContainer').classList.add('hidden');
@@ -217,25 +217,29 @@ class QuizApp {
     }
 
     handleTimeUp() {
-        if (this.userAnswers[this.currentQuestion] === null) {
-            this.selectAnswer(-1);
-            this.nextQuestion();
+        if (!this.submittedAnswers.has(this.currentQuestion)) {
+            if (this.userAnswers[this.currentQuestion] === null) {
+                this.userAnswers[this.currentQuestion] = -1;
+            }
+            this.submitAnswer();
         }
     }
 
     displayQuestion() {
         const question = this.questions[this.currentQuestion];
         const randomizedChoicesForQuestion = this.randomizedChoices[this.currentQuestion];
+        const isSubmitted = this.submittedAnswers.has(this.currentQuestion);
 
         document.getElementById('questionNumber').textContent = `Question ${this.currentQuestion + 1}/${this.questions.length}`;
         document.getElementById('topic').textContent = question.topic;
         document.getElementById('questionText').textContent = question.question;
 
-        const choicesContainer = document.getElementById('choices');
-        choicesContainer.innerHTML = '';
+        const container = document.getElementById('choices');
+        container.innerHTML = '';
+        container.className = 'flex gap-4';
 
-        const choicesDiv = document.createElement('div');
-        choicesDiv.className = 'space-y-2';
+        const choicesColumn = document.createElement('div');
+        choicesColumn.className = 'flex-grow space-y-2';
 
         randomizedChoicesForQuestion.forEach(({ choice, originalIndex }) => {
             const button = document.createElement('button');
@@ -246,30 +250,55 @@ class QuizApp {
             } border`;
             button.textContent = choice;
             button.onclick = () => this.selectAnswer(originalIndex);
-            choicesDiv.appendChild(button);
+            button.disabled = isSubmitted;
+            choicesColumn.appendChild(button);
         });
 
-        choicesContainer.appendChild(choicesDiv);
+        container.appendChild(choicesColumn);
 
-        const nextBtn = document.getElementById('nextBtn');
-        nextBtn.textContent = this.currentQuestion === this.questions.length - 1 ? 'Finish' : 'Next';
-        document.getElementById('prevBtn').disabled = this.currentQuestion === 0;
-        nextBtn.disabled = this.userAnswers[this.currentQuestion] === null;
+        if (!isSubmitted) {
+            const submitColumn = document.createElement('div');
+            submitColumn.className = 'flex flex-col justify-center';
+            
+            const submitButton = document.createElement('button');
+            submitButton.className = 'px-6 py-3 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-300';
+            submitButton.textContent = 'Submit';
+            submitButton.disabled = this.userAnswers[this.currentQuestion] === null;
+            submitButton.onclick = () => this.submitAnswer();
+            
+            submitColumn.appendChild(submitButton);
+            container.appendChild(submitColumn);
+        }
     }
 
     selectAnswer(index) {
+        this.userAnswers[this.currentQuestion] = index;
+        this.displayQuestion();
+    }
+
+    submitAnswer() {
         if (this.timerInterval) {
             clearInterval(this.timerInterval);
         }
         
-        this.userAnswers[this.currentQuestion] = index;
         const timeTaken = Math.min(
             this.maxTimePerQuestion,
             Math.floor((Date.now() - this.questionStartTime) / 1000)
         );
         this.questionTimes[this.currentQuestion] = timeTaken;
-        this.displayQuestion();
+        
+        this.submittedAnswers.add(this.currentQuestion);
+        
+        // Immediately move to next question or show results
+        if (this.currentQuestion < this.questions.length - 1) {
+            this.currentQuestion++;
+            this.displayQuestion();
+            this.startQuestionTimer();
+        } else {
+            this.showResults();
+        }
     }
+
 
     calculateQuestionScore(questionIndex) {
         const baseScore = 100;
@@ -286,30 +315,6 @@ class QuizApp {
         ));
 
         return baseScore + timeBonus;
-    }
-
-    previousQuestion() {
-        if (this.currentQuestion > 0) {
-            if (this.timerInterval) {
-                clearInterval(this.timerInterval);
-            }
-            this.currentQuestion--;
-            this.displayQuestion();
-            this.startQuestionTimer();
-        }
-    }
-
-    nextQuestion() {
-        if (this.currentQuestion < this.questions.length - 1) {
-            this.currentQuestion++;
-            this.displayQuestion();
-            this.startQuestionTimer();
-        } else {
-            if (this.timerInterval) {
-                clearInterval(this.timerInterval);
-            }
-            this.showResults();
-        }
     }
 
     showResults() {
@@ -374,17 +379,19 @@ class QuizApp {
             `;
             incorrectContainer.appendChild(div);
         });
+
     }
 
-restartQuiz() {
+    restartQuiz() {
         if (this.timerInterval) {
             clearInterval(this.timerInterval);
         }
         this.currentQuestion = 0;
         this.userAnswers = new Array(this.questions.length).fill(null);
         this.questionTimes = new Array(this.questions.length).fill(0);
-        this.randomizeQuestions(); // Randomize questions again for new attempt
-        this.randomizeAllChoices(); // Randomize choices again
+        this.submittedAnswers = new Set();
+        this.randomizeQuestions();
+        this.randomizeAllChoices();
         document.getElementById('resultsContainer').classList.add('hidden');
         document.getElementById('quizContainer').classList.remove('hidden');
         this.displayQuestion();
@@ -392,6 +399,7 @@ restartQuiz() {
     }
 }
 
+// Initialize the quiz app when the DOM is fully loaded
 document.addEventListener('DOMContentLoaded', () => {
     new QuizApp();
 });
