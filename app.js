@@ -5,8 +5,15 @@ class QuizApp {
         this.questions = [];
         this.currentQuestion = 0;
         this.userAnswers = [];
+        // Timer-related properties
+        this.maxTimePerQuestion = 30; // seconds
+        this.timeRemaining = 0;
+        this.questionStartTime = 0;
+        this.questionTimes = []; // Store time taken for each question
+        this.timerInterval = null;
+        
         this.setupEventListeners();
-        this.loadQuizzes();
+        this.initializeApp();
     }
 
     setupEventListeners() {
@@ -15,6 +22,15 @@ class QuizApp {
         document.getElementById('restartBtn').addEventListener('click', () => this.restartQuiz());
         document.getElementById('backToListBtn').addEventListener('click', () => this.showQuizList());
         document.getElementById('exitQuizBtn').addEventListener('click', () => this.showQuizList());
+    }
+
+    async initializeApp() {
+        try {
+            await this.loadQuizzes();
+        } catch (error) {
+            console.error('Failed to initialize app:', error);
+            this.showError('Failed to load quizzes. Please try again.');
+        }
     }
 
     async loadQuizzes() {
@@ -62,12 +78,16 @@ class QuizApp {
             this.showQuizList();
         } catch (error) {
             console.error('Error loading quizzes:', error);
-            document.getElementById('loadingState').innerHTML = `
-                <h1 class="text-2xl font-bold mb-4 text-red-600">Error Loading Quizzes</h1>
-                <p>Please ensure manifest.yaml and quiz files are present in the /data directory.</p>
-                <p class="text-sm text-gray-600 mt-2">Technical details: ${error.message}</p>
-            `;
+            this.showError(`Error Loading Quizzes: ${error.message}`);
         }
+    }
+
+    showError(message) {
+        document.getElementById('loadingState').innerHTML = `
+            <h1 class="text-2xl font-bold mb-4 text-red-600">Error</h1>
+            <p>${message}</p>
+            <p class="text-sm text-gray-600 mt-2">Please check your connection and try again.</p>
+        `;
     }
 
     isValidQuizData(data) {
@@ -87,6 +107,10 @@ class QuizApp {
     }
 
     showQuizList() {
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+        }
+        
         document.getElementById('loadingState').classList.add('hidden');
         document.getElementById('quizContainer').classList.add('hidden');
         document.getElementById('resultsContainer').classList.add('hidden');
@@ -115,12 +139,63 @@ class QuizApp {
         this.questions = this.quizzes[filename].questions;
         this.currentQuestion = 0;
         this.userAnswers = new Array(this.questions.length).fill(null);
+        this.questionTimes = new Array(this.questions.length).fill(0);
         
         document.getElementById('quizSelection').classList.add('hidden');
         document.getElementById('resultsContainer').classList.add('hidden');
         document.getElementById('quizContainer').classList.remove('hidden');
         
         this.displayQuestion();
+        this.startQuestionTimer();
+    }
+
+    startQuestionTimer() {
+        this.timeRemaining = this.maxTimePerQuestion;
+        this.questionStartTime = Date.now();
+        this.updateTimerDisplay();
+
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+        }
+
+        this.timerInterval = setInterval(() => {
+            this.timeRemaining = Math.max(0, this.maxTimePerQuestion - 
+                Math.floor((Date.now() - this.questionStartTime) / 1000));
+            this.updateTimerDisplay();
+
+            if (this.timeRemaining === 0) {
+                clearInterval(this.timerInterval);
+                this.handleTimeUp();
+            }
+        }, 1000);
+    }
+
+    updateTimerDisplay() {
+        const timerDisplay = document.getElementById('timerDisplay');
+        const timerBar = document.getElementById('timerBar');
+        
+        if (timerDisplay && timerBar) {
+            const seconds = this.timeRemaining;
+            const percentage = (seconds / this.maxTimePerQuestion) * 100;
+            
+            // Update timer text
+            const colorClass = seconds < 10 ? 'text-red-600' : 'text-gray-600';
+            timerDisplay.className = `text-lg font-bold ${colorClass} ${seconds < 10 ? 'timer-pulse' : ''}`;
+            timerDisplay.textContent = `${seconds}s`;
+            
+            // Update progress bar
+            timerBar.style.width = `${percentage}%`;
+            timerBar.className = `h-2 rounded-full transition-all duration-1000 ${
+                seconds < 10 ? 'bg-red-600' : 'bg-blue-600'
+            }`;
+        }
+    }
+
+    handleTimeUp() {
+        if (this.userAnswers[this.currentQuestion] === null) {
+            this.selectAnswer(-1); // -1 indicates timeout
+            this.nextQuestion();
+        }
     }
 
     displayQuestion() {
@@ -157,14 +232,46 @@ class QuizApp {
     }
 
     selectAnswer(index) {
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+        }
+        
         this.userAnswers[this.currentQuestion] = index;
+        const timeTaken = Math.min(
+            this.maxTimePerQuestion,
+            Math.floor((Date.now() - this.questionStartTime) / 1000)
+        );
+        this.questionTimes[this.currentQuestion] = timeTaken;
         this.displayQuestion();
+    }
+
+    calculateQuestionScore(questionIndex) {
+        const baseScore = 100;
+        const timeBonusMax = 50;
+        
+        // If timed out or wrong answer, return 0
+        if (this.userAnswers[questionIndex] === -1 || 
+            this.userAnswers[questionIndex] !== this.questions[questionIndex].correct) {
+            return 0;
+        }
+
+        // Calculate time bonus
+        const timeTaken = this.questionTimes[questionIndex];
+        const timeBonus = Math.max(0, Math.floor(
+            timeBonusMax * (1 - timeTaken / this.maxTimePerQuestion)
+        ));
+
+        return baseScore + timeBonus;
     }
 
     previousQuestion() {
         if (this.currentQuestion > 0) {
+            if (this.timerInterval) {
+                clearInterval(this.timerInterval);
+            }
             this.currentQuestion--;
             this.displayQuestion();
+            this.startQuestionTimer();
         }
     }
 
@@ -172,7 +279,11 @@ class QuizApp {
         if (this.currentQuestion < this.questions.length - 1) {
             this.currentQuestion++;
             this.displayQuestion();
+            this.startQuestionTimer();
         } else {
+            if (this.timerInterval) {
+                clearInterval(this.timerInterval);
+            }
             this.showResults();
         }
     }
@@ -181,47 +292,73 @@ class QuizApp {
         document.getElementById('quizContainer').classList.add('hidden');
         document.getElementById('resultsContainer').classList.remove('hidden');
 
-        const correctAnswers = this.userAnswers.filter((answer, index) => 
-            answer === this.questions[index].correct
-        ).length;
+        let totalScore = 0;
+        const maxPossibleScore = this.questions.length * 150; // 100 base + 50 max time bonus
 
-        const scorePercentage = ((correctAnswers / this.questions.length) * 100).toFixed(1);
-        document.getElementById('score').textContent = 
-            `Your Score: ${correctAnswers}/${this.questions.length} (${scorePercentage}%)`;
+        // Calculate statistics
+        const validTimes = this.questionTimes.filter(time => time > 0);
+        const averageTime = validTimes.length > 0 
+            ? (validTimes.reduce((a, b) => a + b, 0) / validTimes.length).toFixed(1)
+            : 0;
+        const fastestTime = validTimes.length > 0 
+            ? Math.min(...validTimes)
+            : 0;
 
-        const incorrectContainer = document.getElementById('incorrectAnswers');
-        incorrectContainer.innerHTML = '<h3 class="font-bold mb-2">Incorrect Answers:</h3>';
-
-        let hasIncorrectAnswers = false;
-        this.questions.forEach((question, index) => {
-            if (this.userAnswers[index] !== question.correct) {
-                hasIncorrectAnswers = true;
-                const div = document.createElement('div');
-                div.className = 'mb-4 p-3 bg-red-50 rounded';
-                div.innerHTML = `
-                    <p class="font-bold">${question.question}</p>
-                    <p class="text-red-600">Your answer: ${question.choices[this.userAnswers[index]]}</p>
-                    <p class="text-green-600">Correct answer: ${question.choices[question.correct]}</p>
-                `;
-                incorrectContainer.appendChild(div);
-            }
+        this.questions.forEach((_, index) => {
+            totalScore += this.calculateQuestionScore(index);
         });
 
-        if (!hasIncorrectAnswers) {
-            incorrectContainer.innerHTML = `
-                <div class="p-3 bg-green-50 rounded">
-                    <p class="text-green-600 font-bold">Perfect score! All answers are correct.</p>
-                </div>
+        const scorePercentage = ((totalScore / maxPossibleScore) * 100).toFixed(1);
+        
+        document.getElementById('score').innerHTML = `
+            <div class="text-2xl font-bold mb-2">Final Score: ${scorePercentage}%</div>
+            <div class="text-lg text-gray-600">Total Points: ${totalScore}/${maxPossibleScore}</div>
+        `;
+
+        document.getElementById('timeStats').innerHTML = `
+            <div>Average Time: ${averageTime}s per question</div>
+            <div>Fastest Answer: ${fastestTime}s</div>
+        `;
+
+        const incorrectContainer = document.getElementById('incorrectAnswers');
+        incorrectContainer.innerHTML = '<h3 class="font-bold mb-4 text-lg">Question Details:</h3>';
+
+        this.questions.forEach((question, index) => {
+            const div = document.createElement('div');
+            div.className = 'mb-4 p-4 rounded ' + 
+                (this.userAnswers[index] === question.correct ? 'bg-green-50' : 'bg-red-50');
+            
+            const score = this.calculateQuestionScore(index);
+            const timeTaken = this.questionTimes[index];
+            
+            div.innerHTML = `
+                <p class="font-bold">Question ${index + 1}: ${question.question}</p>
+                <p class="${this.userAnswers[index] === question.correct ? 'text-green-600' : 'text-red-600'}">
+                    Your answer: ${this.userAnswers[index] === -1 ? 'Time Out' : 
+                        question.choices[this.userAnswers[index]]}
+                </p>
+                ${this.userAnswers[index] !== question.correct ? 
+                    `<p class="text-green-600">Correct answer: ${question.choices[question.correct]}</p>` : ''}
+                <p class="text-sm text-gray-600 mt-2">
+                    Time taken: ${timeTaken}s | Points earned: ${score}
+                    ${score > 100 ? ` (includes ${score - 100} speed bonus)` : ''}
+                </p>
             `;
-        }
+            incorrectContainer.appendChild(div);
+        });
     }
 
     restartQuiz() {
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+        }
         this.currentQuestion = 0;
         this.userAnswers = new Array(this.questions.length).fill(null);
+        this.questionTimes = new Array(this.questions.length).fill(0);
         document.getElementById('resultsContainer').classList.add('hidden');
         document.getElementById('quizContainer').classList.remove('hidden');
         this.displayQuestion();
+        this.startQuestionTimer();
     }
 }
 
