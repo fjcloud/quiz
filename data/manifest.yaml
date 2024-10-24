@@ -3,3 +3,5 @@ quizzes:
     order: 1
   - filename: rosa.yaml
     order: 2
+  - filename: aro.yaml
+    order: 3
