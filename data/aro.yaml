@@ -1,0 +1,92 @@
+title: "Azure Red Hat OpenShift (ARO) Quiz"
+description: "Test your knowledge about Azure Red Hat OpenShift architecture, deployment, and management concepts"
+questions:
+  - topic: "Architecture"
+    question: "What is the minimum number of worker nodes required for an Azure Red Hat OpenShift cluster?"
+    correct: 2
+    choices:
+      - "1 worker node"
+      - "2 worker nodes"
+      - "3 worker nodes"
+      - "4 worker nodes"
+
+  - topic: "Networking"
+    question: "How many empty subnets are required when creating a new Azure Red Hat OpenShift cluster?"
+    correct: 0
+    choices:
+      - "Two subnets - one for master nodes and one for worker nodes"
+      - "Three subnets - one for each availability zone"
+      - "One subnet for all nodes"
+      - "Four subnets - for master, worker, and infrastructure nodes"
+
+  - topic: "Authentication"
+    question: "What authentication providers come pre-configured with Azure Red Hat OpenShift clusters?"
+    correct: 3
+    choices:
+      - "Microsoft Entra ID only"
+      - "Red Hat SSO only"
+      - "Both Microsoft Entra ID and Red Hat SSO"
+      - "None - customers need to configure their own providers"
+
+  - topic: "Storage"
+    question: "What type of storage is used for persistent volumes in Azure Red Hat OpenShift?"
+    correct: 0
+    choices:
+      - "Azure-Disk block storage (RWO)"
+      - "Azure Files (RWX)"
+      - "Azure Blob Storage"
+      - "Azure NetApp Files"
+
+  - topic: "Container Runtime"
+    question: "Which container engine does Azure Red Hat OpenShift use?"
+    correct: 1
+    choices:
+      - "Docker"
+      - "CRI-O"
+      - "containerd"
+      - "rkt"
+
+  - topic: "Support"
+    question: "How can customers submit support requests for Azure Red Hat OpenShift?"
+    correct: 2
+    choices:
+      - "Only through the Azure portal"
+      - "Only through Red Hat Customer Portal"
+      - "Through either Azure portal or Red Hat Customer Portal"
+      - "Through OpenShift Console only"
+
+  - topic: "Billing"
+    question: "How is Azure Red Hat OpenShift billed?"
+    correct: 0
+    choices:
+      - "Directly through Azure subscription with additional OpenShift license costs"
+      - "Through Red Hat subscription only"
+      - "Separate billing for Azure resources and OpenShift license"
+      - "Fixed monthly fee regardless of usage"
+
+  - topic: "Operations"
+    question: "What is the typical time required to create an Azure Red Hat OpenShift cluster?"
+    correct: 1
+    choices:
+      - "15-20 minutes"
+      - "35-45 minutes"
+      - "60-90 minutes"
+      - "10-15 minutes"
+
+  - topic: "Scaling"
+    question: "What is the maximum number of worker nodes that can be defined during cluster creation?"
+    correct: 2
+    choices:
+      - "25 nodes"
+      - "100 nodes"
+      - "50 nodes"
+      - "200 nodes"
+
+  - topic: "Security"
+    question: "What happens to data in Azure Storage for Azure Red Hat OpenShift by default?"
+    correct: 3
+    choices:
+      - "Data is not encrypted"
+      - "Data is encrypted with customer-managed keys only"
+      - "Data is encrypted with Red Hat managed keys"
+      - "Data is encrypted with Microsoft platform-managed keys"
