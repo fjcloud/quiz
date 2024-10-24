@@ -1,3 +1,5 @@
 quizzes:
   - filename: openshift.yaml
     order: 1
+  - filename: rosa.yaml
+    order: 2
