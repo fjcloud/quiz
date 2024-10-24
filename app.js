@@ -3,14 +3,16 @@ class QuizApp {
         this.quizzes = {};
         this.currentQuiz = null;
         this.questions = [];
+        this.originalQuestions = []; // Store original questions order
         this.currentQuestion = 0;
         this.userAnswers = [];
-        // Timer-related properties
-        this.maxTimePerQuestion = 30; // seconds
+        this.maxTimePerQuestion = 30;
         this.timeRemaining = 0;
         this.questionStartTime = 0;
-        this.questionTimes = []; // Store time taken for each question
+        this.questionTimes = [];
         this.timerInterval = null;
+        this.questionMapping = []; // Map randomized questions back to original order
+        this.randomizedChoices = []; // Store randomized choices for each question
         
         this.setupEventListeners();
         this.initializeApp();
@@ -24,6 +26,32 @@ class QuizApp {
         document.getElementById('exitQuizBtn').addEventListener('click', () => this.showQuizList());
     }
 
+    shuffleArray(array) {
+        const shuffled = [...array];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled;
+    }
+
+    randomizeQuestions() {
+        this.originalQuestions = [...this.questions];
+        const indices = Array.from({ length: this.questions.length }, (_, i) => i);
+        this.questionMapping = this.shuffleArray(indices);
+        this.questions = this.questionMapping.map(index => this.originalQuestions[index]);
+    }
+
+    randomizeAllChoices() {
+        this.randomizedChoices = this.questions.map(question => {
+            const choicesWithIndices = question.choices.map((choice, index) => ({ 
+                choice, 
+                originalIndex: index 
+            }));
+            return this.shuffleArray(choicesWithIndices);
+        });
+    }
+
     async initializeApp() {
         try {
             await this.loadQuizzes();
@@ -35,7 +63,6 @@ class QuizApp {
 
     async loadQuizzes() {
         try {
-            // First load the manifest
             const manifestResponse = await fetch('/data/manifest.yaml');
             if (!manifestResponse.ok) {
                 throw new Error('Failed to load quiz manifest');
@@ -48,12 +75,10 @@ class QuizApp {
                 throw new Error('Invalid manifest format');
             }
 
-            // Sort quizzes by order if present
             const sortedQuizzes = [...manifest.quizzes].sort((a, b) => 
                 (a.order || 0) - (b.order || 0)
             );
 
-            // Load each quiz file listed in the manifest
             for (const quizInfo of sortedQuizzes) {
                 try {
                     const fileResponse = await fetch(`/data/${quizInfo.filename}`);
@@ -137,6 +162,8 @@ class QuizApp {
     startQuiz(filename) {
         this.currentQuiz = filename;
         this.questions = this.quizzes[filename].questions;
+        this.randomizeQuestions();
+        this.randomizeAllChoices();
         this.currentQuestion = 0;
         this.userAnswers = new Array(this.questions.length).fill(null);
         this.questionTimes = new Array(this.questions.length).fill(0);
@@ -178,12 +205,10 @@ class QuizApp {
             const seconds = this.timeRemaining;
             const percentage = (seconds / this.maxTimePerQuestion) * 100;
             
-            // Update timer text
             const colorClass = seconds < 10 ? 'text-red-600' : 'text-gray-600';
             timerDisplay.className = `text-lg font-bold ${colorClass} ${seconds < 10 ? 'timer-pulse' : ''}`;
             timerDisplay.textContent = `${seconds}s`;
             
-            // Update progress bar
             timerBar.style.width = `${percentage}%`;
             timerBar.className = `h-2 rounded-full transition-all duration-1000 ${
                 seconds < 10 ? 'bg-red-600' : 'bg-blue-600'
@@ -193,13 +218,14 @@ class QuizApp {
 
     handleTimeUp() {
         if (this.userAnswers[this.currentQuestion] === null) {
-            this.selectAnswer(-1); // -1 indicates timeout
+            this.selectAnswer(-1);
             this.nextQuestion();
         }
     }
 
     displayQuestion() {
         const question = this.questions[this.currentQuestion];
+        const randomizedChoicesForQuestion = this.randomizedChoices[this.currentQuestion];
 
         document.getElementById('questionNumber').textContent = `Question ${this.currentQuestion + 1}/${this.questions.length}`;
         document.getElementById('topic').textContent = question.topic;
@@ -211,15 +237,15 @@ class QuizApp {
         const choicesDiv = document.createElement('div');
         choicesDiv.className = 'space-y-2';
 
-        question.choices.forEach((choice, index) => {
+        randomizedChoicesForQuestion.forEach(({ choice, originalIndex }) => {
             const button = document.createElement('button');
             button.className = `w-full text-left p-3 rounded ${
-                this.userAnswers[this.currentQuestion] === index 
+                this.userAnswers[this.currentQuestion] === originalIndex 
                     ? 'bg-blue-100 border-blue-500' 
                     : 'bg-gray-50 hover:bg-gray-100'
             } border`;
             button.textContent = choice;
-            button.onclick = () => this.selectAnswer(index);
+            button.onclick = () => this.selectAnswer(originalIndex);
             choicesDiv.appendChild(button);
         });
 
@@ -249,13 +275,11 @@ class QuizApp {
         const baseScore = 100;
         const timeBonusMax = 50;
         
-        // If timed out or wrong answer, return 0
         if (this.userAnswers[questionIndex] === -1 || 
             this.userAnswers[questionIndex] !== this.questions[questionIndex].correct) {
             return 0;
         }
 
-        // Calculate time bonus
         const timeTaken = this.questionTimes[questionIndex];
         const timeBonus = Math.max(0, Math.floor(
             timeBonusMax * (1 - timeTaken / this.maxTimePerQuestion)
@@ -293,9 +317,8 @@ class QuizApp {
         document.getElementById('resultsContainer').classList.remove('hidden');
 
         let totalScore = 0;
-        const maxPossibleScore = this.questions.length * 150; // 100 base + 50 max time bonus
+        const maxPossibleScore = this.questions.length * 150;
 
-        // Calculate statistics
         const validTimes = this.questionTimes.filter(time => time > 0);
         const averageTime = validTimes.length > 0 
             ? (validTimes.reduce((a, b) => a + b, 0) / validTimes.length).toFixed(1)
@@ -323,21 +346,26 @@ class QuizApp {
         const incorrectContainer = document.getElementById('incorrectAnswers');
         incorrectContainer.innerHTML = '<h3 class="font-bold mb-4 text-lg">Question Details:</h3>';
 
-        this.questions.forEach((question, index) => {
+        this.originalQuestions.forEach((question, originalIndex) => {
+            const randomizedIndex = this.questionMapping.indexOf(originalIndex);
+            const userAnswer = this.userAnswers[randomizedIndex];
+            
             const div = document.createElement('div');
             div.className = 'mb-4 p-4 rounded ' + 
-                (this.userAnswers[index] === question.correct ? 'bg-green-50' : 'bg-red-50');
+                (userAnswer === question.correct ? 'bg-green-50' : 'bg-red-50');
             
-            const score = this.calculateQuestionScore(index);
-            const timeTaken = this.questionTimes[index];
+            const score = this.calculateQuestionScore(randomizedIndex);
+            const timeTaken = this.questionTimes[randomizedIndex];
+
+            const userChoiceText = userAnswer === -1 ? 'Time Out' : 
+                (userAnswer !== null ? question.choices[userAnswer] : 'No answer');
             
             div.innerHTML = `
-                <p class="font-bold">Question ${index + 1}: ${question.question}</p>
-                <p class="${this.userAnswers[index] === question.correct ? 'text-green-600' : 'text-red-600'}">
-                    Your answer: ${this.userAnswers[index] === -1 ? 'Time Out' : 
-                        question.choices[this.userAnswers[index]]}
+                <p class="font-bold">Question ${originalIndex + 1}: ${question.question}</p>
+                <p class="${userAnswer === question.correct ? 'text-green-600' : 'text-red-600'}">
+                    Your answer: ${userChoiceText}
                 </p>
-                ${this.userAnswers[index] !== question.correct ? 
+                ${userAnswer !== question.correct ? 
                     `<p class="text-green-600">Correct answer: ${question.choices[question.correct]}</p>` : ''}
                 <p class="text-sm text-gray-600 mt-2">
                     Time taken: ${timeTaken}s | Points earned: ${score}
@@ -348,13 +376,15 @@ class QuizApp {
         });
     }
 
-    restartQuiz() {
+restartQuiz() {
         if (this.timerInterval) {
             clearInterval(this.timerInterval);
         }
         this.currentQuestion = 0;
         this.userAnswers = new Array(this.questions.length).fill(null);
         this.questionTimes = new Array(this.questions.length).fill(0);
+        this.randomizeQuestions(); // Randomize questions again for new attempt
+        this.randomizeAllChoices(); // Randomize choices again
         document.getElementById('resultsContainer').classList.add('hidden');
         document.getElementById('quizContainer').classList.remove('hidden');
         this.displayQuestion();
