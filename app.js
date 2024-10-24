@@ -289,7 +289,6 @@ class QuizApp {
         
         this.submittedAnswers.add(this.currentQuestion);
         
-        // Immediately move to next question or show results
         if (this.currentQuestion < this.questions.length - 1) {
             this.currentQuestion++;
             this.displayQuestion();
@@ -298,7 +297,6 @@ class QuizApp {
             this.showResults();
         }
     }
-
 
     calculateQuestionScore(questionIndex) {
         const baseScore = 100;
@@ -341,6 +339,22 @@ class QuizApp {
         document.getElementById('score').innerHTML = `
             <div class="text-2xl font-bold mb-2">Final Score: ${scorePercentage}%</div>
             <div class="text-lg text-gray-600">Total Points: ${totalScore}/${maxPossibleScore}</div>
+            <div class="mt-6">
+                <input type="text" 
+                    id="nicknameInput" 
+                    placeholder="Enter your nickname" 
+                    class="px-4 py-2 border rounded mr-2 focus:outline-none focus:border-blue-500"
+                    maxlength="20"
+                />
+                <button 
+                    id="submitScoreBtn" 
+                    class="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
+                    onclick="quizApp.submitScore(${totalScore})"
+                >
+                    Submit to Leaderboard
+                </button>
+                <div id="submitStatus" class="mt-2 text-sm"></div>
+            </div>
         `;
 
         document.getElementById('timeStats').innerHTML = `
@@ -366,7 +380,7 @@ class QuizApp {
                 (userAnswer !== null ? question.choices[userAnswer] : 'No answer');
             
             div.innerHTML = `
-                <p class="font-bold">Question ${originalIndex + 1}: ${question.question}</p>
+                <p class="font-bold">Question ${originalIndex+ 1}: ${question.question}</p>
                 <p class="${userAnswer === question.correct ? 'text-green-600' : 'text-red-600'}">
                     Your answer: ${userChoiceText}
                 </p>
@@ -379,7 +393,66 @@ class QuizApp {
             `;
             incorrectContainer.appendChild(div);
         });
+    }
 
+async submitScore(score) {
+        const nicknameInput = document.getElementById('nicknameInput');
+        const submitBtn = document.getElementById('submitScoreBtn');
+        const statusDiv = document.getElementById('submitStatus');
+        
+        const nickname = nicknameInput.value.trim();
+        
+        if (!nickname) {
+            statusDiv.textContent = 'Please enter a nickname';
+            statusDiv.className = 'mt-2 text-sm text-red-500';
+            return;
+        }
+
+        try {
+            submitBtn.disabled = true;
+            nicknameInput.disabled = true;
+            statusDiv.textContent = 'Submitting score...';
+            statusDiv.className = 'mt-2 text-sm text-gray-500';
+
+            const response = await fetch('https://leaderboard-worker.fj-9d1.workers.dev/score', {
+                method: 'POST',
+                mode: 'cors', // Explicitly set CORS mode
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    player: nickname,
+                    score: score
+                })
+            });
+
+            // If the response is ok, assume success even if we can't read the response
+            if (response.ok) {
+                statusDiv.textContent = 'Score submitted successfully!';
+                statusDiv.className = 'mt-2 text-sm text-green-500';
+                submitBtn.style.display = 'none';
+                nicknameInput.disabled = true;
+                return;
+            }
+
+            // If we get here, there was an error
+            throw new Error('Failed to submit score');
+
+        } catch (error) {
+            console.error('Error submitting score:', error);
+            
+            // Check if it's a CORS error
+            if (error instanceof TypeError && error.message.includes('CORS')) {
+                statusDiv.textContent = 'Unable to submit score due to CORS policy. Please check your connection or try again later.';
+            } else {
+                statusDiv.textContent = 'Failed to submit score. Please try again.';
+            }
+            
+            statusDiv.className = 'mt-2 text-sm text-red-500';
+            submitBtn.disabled = false;
+            nicknameInput.disabled = false;
+        }
     }
 
     restartQuiz() {
@@ -399,7 +472,7 @@ class QuizApp {
     }
 }
 
-// Initialize the quiz app when the DOM is fully loaded
+// Initialize the quiz app when the DOM is fully loaded and make it globally available
 document.addEventListener('DOMContentLoaded', () => {
-    new QuizApp();
+    window.quizApp = new QuizApp();
 });
