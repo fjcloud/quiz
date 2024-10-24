@@ -1,0 +1,92 @@
+title: "Red Hat OpenShift Service on AWS (ROSA) Quiz"
+description: "Test your knowledge about ROSA architecture, deployment, and management concepts"
+questions:
+  - topic: "Architecture"
+    question: "What is a key architectural difference between ROSA with HCP and ROSA Classic?"
+    correct: 0
+    choices:
+      - "In ROSA with HCP, each cluster has a dedicated control plane isolated in a ROSA service account"
+      - "In ROSA with HCP, control planes are shared between multiple clusters"
+      - "In ROSA Classic, control planes are hosted in a separate AWS region"
+      - "There are no architectural differences between the two models"
+
+  - topic: "Authentication"
+    question: "What authentication method is required for ROSA with HCP clusters?"
+    correct: 1
+    choices:
+      - "IAM users and roles"
+      - "AWS Security Token Service (STS)"
+      - "Basic authentication"
+      - "OpenShift OAuth"
+
+  - topic: "Prerequisites"
+    question: "What is a mandatory requirement before creating a ROSA with HCP cluster?"
+    correct: 2
+    choices:
+      - "A public subnet in AWS"
+      - "A default VPC"
+      - "A configured Virtual Private Cloud (VPC) with appropriate subnets"
+      - "A direct connection to AWS"
+
+  - topic: "Monitoring"
+    question: "What is the default retention time for metrics in user-defined projects monitoring?"
+    correct: 1
+    choices:
+      - "15 days"
+      - "24 hours"
+      - "7 days"
+      - "30 days"
+
+  - topic: "Worker Nodes"
+    question: "What is the maximum number of worker nodes supported in a ROSA with HCP cluster?"
+    correct: 2
+    choices:
+      - "60 nodes"
+      - "120 nodes"
+      - "90 nodes"
+      - "180 nodes"
+
+  - topic: "Security"
+    question: "What type of encryption is enabled by default in ROSA with HCP?"
+    correct: 0
+    choices:
+      - "The etcd database is always encrypted by default"
+      - "Only node root volumes are encrypted"
+      - "No encryption is enabled by default"
+      - "Only persistent volumes are encrypted"
+
+  - topic: "Networking"
+    question: "What is required for the VPC subnets in ROSA with HCP?"
+    correct: 3
+    choices:
+      - "Only public subnets are required"
+      - "No specific tagging is required"
+      - "Only private subnets are required"
+      - "Subnets must be properly tagged with kubernetes.io/role tags"
+
+  - topic: "Installation"
+    question: "Which mode is recommended for creating IAM resources in ROSA with HCP?"
+    correct: 0
+    choices:
+      - "Auto mode for immediate deployment of required resources"
+      - "Manual mode for better control"
+      - "Hybrid mode combining auto and manual"
+      - "Custom mode with user-defined policies"
+
+  - topic: "Management"
+    question: "What role prefix is used by default for account-wide IAM roles in ROSA?"
+    correct: 2
+    choices:
+      - "ROSA-"
+      - "AWS-OpenShift-"
+      - "ManagedOpenShift"
+      - "RedHat-ROSA-"
+
+  - topic: "Support"
+    question: "What happens when a ROSA cluster transitions to a Limited Support status?"
+    correct: 1
+    choices:
+      - "The cluster is automatically deleted"
+      - "Red Hat no longer proactively monitors the cluster and SLA is not applicable"
+      - "The cluster is automatically upgraded"
+      - "Support is completely terminated"
